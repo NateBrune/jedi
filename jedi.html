@@ -1,0 +1,147 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <!-- when using the mode "code", it's important to specify charset utf-8 -->
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+
+    <link href="css/jsoneditor.min.css" rel="stylesheet" type="text/css">
+    <script src="js/jsoneditor.min.js"></script>
+    </head>
+<body>
+    <div id="jsoneditor" style="width: 100%; height: 100%;"></div>
+    <form name="creds">
+      <input type="hidden" name="u">
+    </form>
+    <script src="js/steemjs-lib.min.js"></script>
+    <script>
+        // create the editor
+        var container = document.getElementById("jsoneditor");
+        var options = {};
+        var editor = new JSONEditor(container, options);
+
+        // set json
+        var json = {
+          "version": "0.0.1",
+          "profile": {
+            "name": "Ned Scott",
+            "email": "ned@steem.io",
+            "birthday": "12/31/1999",
+            "gender": "male",
+            "about": "CEO and Co-founder at Steemit",
+            "first_name": "Ned",
+            "last_name": "Scott",
+            "location": "New York",
+            "timezone": "-5",
+            "locale": "en_US",
+            "languages": ["en"],
+            "website": "https://steem.io/",
+            "cover_image": "https://img.busy6.com/@ned/cover",
+            "profile_image": "https://img.busy6.com/@ned"
+          }
+        };
+       	editor.set(json);
+
+
+
+        // get json
+        var json = editor.get();
+        function getJson(){
+          try{
+        	let tr = new window.steemJS.TransactionBuilder();
+          let postingAuth = account.posting;
+          tr.add_type_operation("account_update", {
+              account: username,
+              posting: postingAuth,
+              memo_key: account.memo_key, 
+              json_metadata: editor.getText()});
+          tr.process_transaction(login, null, true);
+          alert("Success!");
+          } catch (err) {
+            alert("Failed to set JSON metadata");
+            console.log(err);
+          }
+        }
+        
+        var locate = window.location;
+        document.creds.u.value = locate;
+        var text = document.creds.u.value;
+        function delineate(str)
+        {
+          theleft = str.indexOf("=") + 1;
+          theright = str.lastIndexOf("&");
+          return(str.substring(theleft, theright));
+        }
+        function delineate2(str2)
+        {
+          point = str2.lastIndexOf("=");
+          return(str2.substring(point+1,str2.length));
+        }
+				var getJSON = function(url, callback) {
+						var xhr = new XMLHttpRequest();
+						xhr.open("get", url, true);
+						xhr.responseType = "json";
+						xhr.onload = function() {
+							var status = xhr.status;
+							if (status == 200) {
+								callback(null, xhr.response);
+							} else {
+								callback(status);
+							}
+						};
+						xhr.send();
+				}
+        var username = decodeURIComponent(delineate(text));
+        var password = decodeURIComponent(delineate2(text));
+        var Api = window.steemJS.steemRPC.Client.get({idleTreshold: 60000}, true);
+        var login = new steemJS.Login()
+        var tx = new steemJS.TransactionBuilder();
+        login.setRoles(["active"]);
+        var account = null;
+        Api.initPromise.then(function (res) {
+          Api.database_api().exec("get_accounts", [
+            [username]
+          ]).then(function (res) {
+            account = res[0];
+            var success = false;
+            try {
+              success = login.checkKeys({
+                accountName: username,
+                password: password,
+                auths: {
+                  owner: account.owner.key_auths,
+                  active: account.active.key_auths,
+                  posting: account.posting.key_auths
+                }
+              });
+            } catch (err) {
+              console.log(err);
+            }
+            if(success) {
+              try{
+         				getJSON("http://api.steemjs.com/getState?path=/@".concat(username), function(err, data){
+								if(err==null){
+									json = JSON.parse(data['accounts'][username]['json_metadata']);
+									editor.set(json);
+								}
+								else{
+									alert("something went horribly wrong while attempting to fetch json_metadata.");
+								}
+								});     
+              }
+							catch(err){
+								pass;
+							}
+            }
+            else {
+              alert("Incorrect Username and Password combo, please try again.");
+              window.location.href="index.html";
+            }
+          });
+        });
+
+    </script>
+    <button id="toTree" class="convert" title="Copy json to json_metadata" onclick="getJson()">
+      <div>Save Json</div>
+    </button>
+</body>
+</html>
